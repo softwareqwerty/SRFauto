@@ -153,11 +153,60 @@ for block in iter_block_items(document):
 combined_df = combined_df.reset_index(drop=True)
 image_df = image_df.reset_index(drop=True)
 
+##-----
+
+# Загружаем файл docx в объект документа. Вы можете указать свой собственный файл docx, изменив путь ниже:
+docx_path = r'C:\Users\demchenko\Desktop\SRFauto\test\krambo_test\1.docx'
+document = Document(docx_path)
+
+# Получаем директорию, где находится файл docx
+output_directory = os.path.dirname(docx_path)
+
 # Записываем полученные данные в новый файл в той же директории
 output_filename = os.path.join(output_directory, 'output_data.xlsx')
+
+# Записываем DataFrame в Excel
 with pd.ExcelWriter(output_filename) as writer:
     combined_df.to_excel(writer, sheet_name='Combined Data', index=False)
     image_df.to_excel(writer, sheet_name='Image Data', index=False)
     table_mod.to_excel(writer, sheet_name='Table Data', index=False)
 
 print(f'Данные успешно записаны в {output_filename}')
+
+# Теперь читаем данные из output_data.xlsx
+read_combined_df = pd.read_excel(output_filename, sheet_name='Combined Data')
+read_image_df = pd.read_excel(output_filename, sheet_name='Image Data')
+read_table_mod = pd.read_excel(output_filename, sheet_name='Table Data')
+
+# Выводим данные в консоль для проверки
+print("Содержимое Combined Data:")
+print(read_combined_df)
+print("\nСодержимое Image Data:")
+print(read_image_df)
+print("\nСодержимое Table Data:")
+print(read_table_mod)
+
+# Создаем новый docx файл на основе прочитанных данных
+new_docx_path = os.path.join(output_directory, 'new_document.docx')
+new_document = Document()
+
+# Добавляем данные из Combined Data в новый документ
+for index, row in read_combined_df.iterrows():
+    # Обработка случая, когда para_text равно NaN
+    para_text = row['para_text'] if pd.notna(row['para_text']) else 'Пустой параграф'
+     # Устанавливаем стиль по умолчанию, если стиль не существует
+    style = row['style'] if pd.notna(row['style']) and row['style'] != 'Novalue' else 'Normal'  # Устанавливаем стиль по умолчанию
+    
+    try:
+        new_document.add_paragraph(para_text, style=style)
+    except KeyError:
+        # Если стиль не существует, добавляем параграф без указания стиля
+        new_document.add_paragraph(para_text)
+
+    # Проверяем table_id на наличие значений
+    if pd.notna(row['table_id']):
+        new_document.add_paragraph(f'Содержимое таблицы с ID {row["table_id"]}', style='Normal')
+
+# Сохраняем новый документ
+new_document.save(new_docx_path)
+print(f'Новый документ успешно сохранен как {new_docx_path}')
